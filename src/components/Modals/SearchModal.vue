@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { POKEMONS } from "@/constants/pokemon"
 import { computed, ref } from "vue"
 
+const { pokemons } = defineProps<{ pokemons: string[] }>()
 const emit = defineEmits(["modal-close"])
 
 const search = ref("")
@@ -12,9 +12,10 @@ const filteredPokemons = computed(() => {
   if (trimmedSearch.length < 3) return []
 
   const res = []
-  for (let i = 0; i < POKEMONS.length; i++) {
-    if (POKEMONS[i].toLowerCase().includes(trimmedSearch.toLowerCase())) {
-      res.push(POKEMONS[i])
+  for (let i = 0; i < pokemons.length; i++) {
+    const p = pokemons[i]
+    if (p.toLowerCase().includes(trimmedSearch.toLowerCase())) {
+      res.push(p)
     }
 
     if (res.length === 4) {
