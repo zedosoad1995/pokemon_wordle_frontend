@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 
 const { pokemons } = defineProps<{ pokemons: string[] }>()
-const emit = defineEmits(["modal-close"])
+const emit = defineEmits<{
+  "modal-close": []
+  "select-option": [pokemon: string]
+}>()
 
 const search = ref("")
+const inputRef = ref<HTMLInputElement | null>(null)
+
+onMounted(() => {
+  inputRef.value?.focus()
+})
 
 const filteredPokemons = computed(() => {
   const trimmedSearch = search.value.trim()
@@ -30,9 +38,16 @@ const filteredPokemons = computed(() => {
 <template>
   <div class="overlay" @click="emit('modal-close')">
     <div class="modal" @click.stop>
-      <input class="search-poke-input" v-model="search" />
+      <input class="search-poke-input" v-model="search" ref="inputRef" />
       <div class="results-container" v-if="filteredPokemons.length > 0">
-        <div class="result" v-for="p in filteredPokemons" :key="p">{{ p }}</div>
+        <div
+          class="result"
+          v-for="p in filteredPokemons"
+          :key="p"
+          @click="emit('select-option', p)"
+        >
+          {{ p }}
+        </div>
       </div>
     </div>
   </div>
