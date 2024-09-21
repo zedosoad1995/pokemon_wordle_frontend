@@ -2,10 +2,11 @@
 import { onMounted, ref } from "vue"
 import SearchModal from "./components/Modals/SearchModal.vue"
 import { getPokemons } from "./api/pokemons"
-import { getBoard } from "./api/boards"
+import { getAnswerFreq, getBoard, updateAnswer } from "./api/boards"
 import { generateToken } from "./utils/token"
 import { createUser } from "./api/users"
-import { LocalStorage } from "./utils/localStorage"
+import { gameStateFallback, LocalStorage, type StorageKeyMap } from "./utils/localStorage"
+import RowOfCells from "./components/Cells/RowOfCells.vue"
 
 const showSearchModal = ref(false)
 const selectedRow = ref<number | null>(null)
@@ -15,33 +16,64 @@ const board = ref<{
   rows: string[]
   cols: string[]
 }>({
-  rows: [],
-  cols: []
+  rows: ["", "", ""],
+  cols: ["", "", ""]
 })
+const imagesBoard = ref<string[][]>([
+  ["", "", ""],
+  ["", "", ""],
+  ["", "", ""]
+])
 const answers = ref<string[][][]>([
   [[], [], []],
   [[], [], []],
   [[], [], []]
 ])
+const answerFreqs = ref<Record<string, number>[][]>([
+  [{}, {}, {}],
+  [{}, {}, {}],
+  [{}, {}, {}]
+])
+const gameState = ref<StorageKeyMap["gameState"]>(gameStateFallback)
 
-onMounted(async () => {
-  const apiCalls: Promise<any>[] = [getPokemons(), getBoard(1)]
-
+onMounted(() => {
   let userToken = LocalStorage.get("userToken")
   if (userToken === null) {
     userToken = generateToken()
-    apiCalls.push(createUser(userToken))
+    createUser(userToken)
     LocalStorage.set("userToken", userToken)
   }
 
-  const res = await Promise.all(apiCalls)
+  getPokemons().then((res) => {
+    pokemons.value = res.pokemons
+  })
+  getBoard(1).then((res) => {
+    board.value = res.board
+    answers.value = res.answers
+  })
+  getAnswerFreq(1).then((res) => {
+    answerFreqs.value = res.freqs
+  })
 
-  pokemons.value = res[0].pokemons
-  board.value = res[1].board
-  answers.value = res[1].answers
+  const gameStateStorage = LocalStorage.get("gameState")
+  if (gameStateStorage !== null) {
+    gameState.value = gameStateStorage
+
+    for (let i = 0; i < gameStateStorage.board.length; i++) {
+      for (let j = 0; j < gameStateStorage.board[i].length; j++) {
+        if (!gameStateStorage.board[i][j].pokemon) continue
+
+        imagesBoard.value[i][j] =
+          import.meta.env.VITE_ASSETS_URL +
+          "/poke_imgs/" +
+          gameStateStorage.board[i][j].pokemon +
+          ".png"
+      }
+    }
+  }
 })
 
-const openModal = (row: number, col: number) => () => {
+const openModal = (row: number) => (col: number) => {
   selectedRow.value = row
   selectedCol.value = col
   showSearchModal.value = !showSearchModal.value
@@ -54,12 +86,46 @@ const closeModal = () => {
 }
 
 const selectPokemon = (pokemon: string) => {
+  const gameStateStorage = LocalStorage.get("gameState")
+  const row = selectedRow.value
+  const col = selectedCol.value
+
   if (
-    selectedRow.value !== null &&
-    selectedCol.value !== null &&
-    answers.value[selectedRow.value][selectedCol.value].includes(pokemon)
+    row !== null &&
+    col !== null &&
+    answers.value[row][col].includes(pokemon) &&
+    gameStateStorage !== null &&
+    !gameStateStorage.board[row][col].pokemon
   ) {
+    const userToken = LocalStorage.get("userToken")
+    if (userToken !== null) {
+      updateAnswer(1, userToken, row + 1, col + 1, pokemon)
+
+      answerFreqs.value[row][col][pokemon] = (answerFreqs.value[row][col][pokemon] ?? 0) + 1
+      const total = Object.values(answerFreqs.value[row][col]).reduce((acc, curr) => acc + curr, 0)
+      gameStateStorage.board[row][col].rarityPerc = Number(
+        ((answerFreqs.value[row][col][pokemon] / total) * 100).toFixed(1)
+      )
+      gameStateStorage.board[row][col].pokemon = pokemon
+
+      imagesBoard.value[row][col] =
+        import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png"
+    }
   } else {
+  }
+
+  if (gameStateStorage !== null) {
+    gameStateStorage.numTries = Math.max(gameStateStorage.numTries - 1, 0)
+
+    if (
+      gameStateStorage.numTries === 0 ||
+      gameStateStorage.board.every((row) => row.every((cell) => cell.pokemon?.length))
+    ) {
+      gameStateStorage.isGameOver = true
+    }
+
+    LocalStorage.set("gameState", gameStateStorage)
+    gameState.value = gameStateStorage
   }
 
   closeModal()
@@ -76,28 +142,18 @@ const selectPokemon = (pokemon: string) => {
       <div class="header-row">{{ board.cols[1] }}</div>
       <div class="header-row">{{ board.cols[2] }}</div>
 
-      <div class="header-col-container">
-        <div class="header-col">{{ board.rows[0] }}</div>
-      </div>
-      <div class="cell" @click="openModal(0, 0)()"></div>
-      <div class="cell" @click="openModal(0, 1)()"></div>
-      <div class="cell" @click="openModal(0, 2)()"></div>
-
-      <div class="header-col-container">
-        <div class="header-col">{{ board.rows[1] }}</div>
-      </div>
-      <div class="cell" @click="openModal(1, 0)()"></div>
-      <div class="cell" @click="openModal(1, 1)()"></div>
-      <div class="cell" @click="openModal(1, 2)()"></div>
-
-      <div class="header-col-container">
-        <div class="header-col">{{ board.rows[2] }}</div>
-      </div>
-      <div class="cell" @click="openModal(2, 0)()"></div>
-      <div class="cell" @click="openModal(2, 1)()"></div>
-      <div class="cell" @click="openModal(2, 2)()"></div>
+      <RowOfCells
+        v-for="i in 3"
+        :header="board.rows[i - 1]"
+        :images="imagesBoard[i - 1]"
+        :openModal="openModal(i - 1)"
+        :answers="gameState.board[i - 1]"
+        :is-game-over="gameState.isGameOver"
+      />
     </div>
   </div>
+
+  <div>Tries: {{ gameState.numTries }}</div>
   <SearchModal
     v-if="showSearchModal"
     @modal-close="closeModal"
@@ -119,22 +175,6 @@ const selectPokemon = (pokemon: string) => {
   text-align: center;
 }
 
-.header-col-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.header-col {
-  text-align: center;
-  position: absolute;
-  max-width: 100px;
-  width: max-content;
-  right: 0;
-  margin-right: 8px;
-}
-
 .board-container {
   display: flex;
   justify-content: center;
@@ -153,25 +193,15 @@ const selectPokemon = (pokemon: string) => {
 
 @media screen and (max-width: 840px) {
   .grid {
+    grid-template-columns: 0.8fr repeat(3, 1fr);
     margin-right: 0;
     max-width: 600px;
   }
+}
 
-  .header-col {
-    font-size: small;
-    position: initial;
-    margin-right: 0;
-    width: auto;
-  }
-
+@media screen and (max-width: 600px) {
   .header-row {
     font-size: small;
   }
-}
-
-.cell {
-  background-color: #eee;
-  cursor: pointer;
-  aspect-ratio: 1 / 1;
 }
 </style>

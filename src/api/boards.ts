@@ -11,3 +11,26 @@ interface getBoardRes {
 export const getBoard = (boardNum: number): Promise<getBoardRes> => {
   return api.get(`/boards/${boardNum}`)
 }
+
+interface getAnswerFreqRes {
+  freqs: Record<string, number>[][]
+}
+
+export const getAnswerFreq = (boardNum: number): Promise<getAnswerFreqRes> => {
+  return api.get(`/boards/${boardNum}/answers/freq`)
+}
+
+export const updateAnswer = (
+  boardNum: number,
+  userToken: string,
+  row: number,
+  col: number,
+  answer: string
+) => {
+  return api.put(`/boards/${boardNum}/answers`, {
+    userToken,
+    row,
+    col,
+    answer
+  })
+}
