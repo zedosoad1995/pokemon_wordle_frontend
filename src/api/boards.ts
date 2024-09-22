@@ -27,10 +27,17 @@ export const updateAnswer = (
   col: number,
   answer: string
 ) => {
-  return api.put(`/boards/${boardNum}/answers`, {
+  return api.put(`/boards/${boardNum}/answers/one`, {
     userToken,
     row,
     col,
     answer
+  })
+}
+
+export const submitAnswers = (boardNum: number, userToken: string, answers: string[][]) => {
+  return api.put(`/boards/${boardNum}/answers/submit`, {
+    userToken,
+    answers
   })
 }

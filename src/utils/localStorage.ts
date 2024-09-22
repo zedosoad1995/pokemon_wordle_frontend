@@ -5,6 +5,7 @@ export interface StorageKeyMap {
     numTries: number
     hasSubmitted: boolean
     isGameOver: boolean
+    score: number
   }
 }
 
@@ -16,7 +17,8 @@ export const gameStateFallback: StorageKeyMap["gameState"] = {
   ],
   numTries: 10,
   hasSubmitted: false,
-  isGameOver: false
+  isGameOver: false,
+  score: 900
 }
 
 export const fallbacks: Partial<{
@@ -31,12 +33,12 @@ export class LocalStorage {
   static get<K extends keyof StorageKeyMap>(key: K): StorageKeyMap[K] | null {
     const value = localStorage.getItem(key)
 
-    if (["gameState"].includes(key)) {
-      return (value === null ? fallbacks[key] : JSON.parse(value)) as StorageKeyMap[K]
-    }
-
     if (value === null) {
       return null
+    }
+
+    if (["gameState"].includes(key)) {
+      return JSON.parse(value) as StorageKeyMap[K]
     }
 
     return value as StorageKeyMap[K]

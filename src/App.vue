@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue"
 import SearchModal from "./components/Modals/SearchModal.vue"
 import { getPokemons } from "./api/pokemons"
-import { getAnswerFreq, getBoard, updateAnswer } from "./api/boards"
+import { getAnswerFreq, getBoard, submitAnswers, updateAnswer } from "./api/boards"
 import { generateToken } from "./utils/token"
 import { createUser } from "./api/users"
 import { gameStateFallback, LocalStorage, type StorageKeyMap } from "./utils/localStorage"
@@ -24,7 +24,7 @@ const imagesBoard = ref<string[][]>([
   ["", "", ""],
   ["", "", ""]
 ])
-const answers = ref<string[][][]>([
+const validAnswers = ref<string[][][]>([
   [[], [], []],
   [[], [], []],
   [[], [], []]
@@ -49,7 +49,7 @@ onMounted(() => {
   })
   getBoard(1).then((res) => {
     board.value = res.board
-    answers.value = res.answers
+    validAnswers.value = res.answers
   })
   getAnswerFreq(1).then((res) => {
     answerFreqs.value = res.freqs
@@ -70,6 +70,20 @@ onMounted(() => {
           ".png"
       }
     }
+
+    if (gameStateStorage.isGameOver && !gameStateStorage.hasSubmitted) {
+      const answers = gameState.value.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
+      submitAnswers(1, userToken, answers).then(() => {
+        const gameStateStorage = LocalStorage.get("gameState")
+        if (gameStateStorage === null) return
+
+        gameStateStorage.hasSubmitted = true
+        LocalStorage.set("gameState", gameStateStorage)
+        gameState.value = gameStateStorage
+      })
+    }
+  } else {
+    LocalStorage.set("gameState", gameStateFallback)
   }
 })
 
@@ -93,7 +107,7 @@ const selectPokemon = (pokemon: string) => {
   if (
     row !== null &&
     col !== null &&
-    answers.value[row][col].includes(pokemon) &&
+    validAnswers.value[row][col].includes(pokemon) &&
     gameStateStorage !== null &&
     !gameStateStorage.board[row][col].pokemon
   ) {
@@ -107,6 +121,9 @@ const selectPokemon = (pokemon: string) => {
         ((answerFreqs.value[row][col][pokemon] / total) * 100).toFixed(1)
       )
       gameStateStorage.board[row][col].pokemon = pokemon
+      gameStateStorage.score = Number(
+        (gameStateStorage.score - 100 + gameStateStorage.board[row][col].rarityPerc).toFixed(1)
+      )
 
       imagesBoard.value[row][col] =
         import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png"
@@ -117,10 +134,22 @@ const selectPokemon = (pokemon: string) => {
   if (gameStateStorage !== null) {
     gameStateStorage.numTries = Math.max(gameStateStorage.numTries - 1, 0)
 
+    const userToken = LocalStorage.get("userToken")
     if (
-      gameStateStorage.numTries === 0 ||
-      gameStateStorage.board.every((row) => row.every((cell) => cell.pokemon?.length))
+      (gameStateStorage.numTries === 0 ||
+        gameStateStorage.board.every((row) => row.every((cell) => cell.pokemon?.length))) &&
+      userToken
     ) {
+      const answers = gameState.value.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
+
+      submitAnswers(1, userToken, answers).then(() => {
+        const gameStateStorage = LocalStorage.get("gameState")
+        if (gameStateStorage === null) return
+
+        gameStateStorage.hasSubmitted = true
+        LocalStorage.set("gameState", gameStateStorage)
+        gameState.value = gameStateStorage
+      })
       gameStateStorage.isGameOver = true
     }
 
@@ -152,8 +181,10 @@ const selectPokemon = (pokemon: string) => {
       />
     </div>
   </div>
-
-  <div>Tries: {{ gameState.numTries }}</div>
+  <div class="scoring-container">
+    <div>Tries: {{ gameState.numTries }}</div>
+    <div>Score: {{ gameState.score }}</div>
+  </div>
   <SearchModal
     v-if="showSearchModal"
     @modal-close="closeModal"
@@ -189,6 +220,13 @@ const selectPokemon = (pokemon: string) => {
   height: 100%;
   width: 100%;
   max-width: 500px;
+}
+
+.scoring-container {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 16px;
 }
 
 @media screen and (max-width: 840px) {
