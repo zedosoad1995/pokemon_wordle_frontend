@@ -7,8 +7,10 @@ import { generateToken } from "./utils/token"
 import { createUser } from "./api/users"
 import { gameStateFallback, LocalStorage, type StorageKeyMap } from "./utils/localStorage"
 import RowOfCells from "./components/Cells/RowOfCells.vue"
+import ResultsModal from "./components/Modals/ResultsModal.vue"
 
 const showSearchModal = ref(false)
+const showStatsModal = ref(false)
 const selectedRow = ref<number | null>(null)
 const selectedCol = ref<number | null>(null)
 const pokemons = ref<string[]>([])
@@ -87,16 +89,24 @@ onMounted(() => {
   }
 })
 
-const openModal = (row: number) => (col: number) => {
+const clickCell = (row: number) => (col: number) => {
   selectedRow.value = row
   selectedCol.value = col
   showSearchModal.value = !showSearchModal.value
 }
 
-const closeModal = () => {
+const closeSearchModal = () => {
   selectedRow.value = null
   selectedCol.value = null
   showSearchModal.value = false
+}
+
+const clickStatsButton = () => {
+  showStatsModal.value = !showStatsModal.value
+}
+
+const closeStatsModal = () => {
+  showStatsModal.value = false
 }
 
 const selectPokemon = (pokemon: string) => {
@@ -157,7 +167,7 @@ const selectPokemon = (pokemon: string) => {
     gameState.value = gameStateStorage
   }
 
-  closeModal()
+  closeSearchModal()
 }
 </script>
 
@@ -175,7 +185,7 @@ const selectPokemon = (pokemon: string) => {
         v-for="i in 3"
         :header="board.rows[i - 1]"
         :images="imagesBoard[i - 1]"
-        :openModal="openModal(i - 1)"
+        :openModal="clickCell(i - 1)"
         :answers="gameState.board[i - 1]"
         :is-game-over="gameState.isGameOver"
       />
@@ -185,12 +195,14 @@ const selectPokemon = (pokemon: string) => {
     <div>Tries: {{ gameState.numTries }}</div>
     <div>Score: {{ gameState.score }}</div>
   </div>
+  <button v-if="gameState.isGameOver" @click="clickStatsButton">Show statistics</button>
   <SearchModal
     v-if="showSearchModal"
-    @modal-close="closeModal"
+    @modal-close="closeSearchModal"
     @select-option="selectPokemon"
     :pokemons="pokemons"
   />
+  <ResultsModal v-if="showStatsModal" @modal-close="closeStatsModal" />
 </template>
 
 <style scoped>
