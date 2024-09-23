@@ -36,11 +36,11 @@ const answerFreqs = ref<Record<string, number>[][]>([
 ])
 const gameState = ref<StorageKeyMap["gameState"]>(gameStateFallback)
 
-onMounted(() => {
+onMounted(async () => {
   let userToken = LocalStorage.get("userToken")
   if (userToken === null) {
     userToken = generateToken()
-    createUser(userToken)
+    await createUser(userToken)
     LocalStorage.set("userToken", userToken)
   }
 
@@ -128,7 +128,6 @@ const selectPokemon = (pokemon: string) => {
       imagesBoard.value[row][col] =
         import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png"
     }
-  } else {
   }
 
   if (gameStateStorage !== null) {
@@ -178,6 +177,7 @@ const selectPokemon = (pokemon: string) => {
         :openModal="openModal(i - 1)"
         :answers="gameState.board[i - 1]"
         :is-game-over="gameState.isGameOver"
+        :key="i"
       />
     </div>
   </div>
