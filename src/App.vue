@@ -7,7 +7,7 @@ import { generateToken } from "./utils/token"
 import { createUser } from "./api/users"
 import { gameStateFallback, LocalStorage, type StorageKeyMap } from "./utils/localStorage"
 import RowOfCells from "./components/Cells/RowOfCells.vue"
-import ResultsModal from "./components/Modals/ResultsModal.vue"
+import ResultsModal from "./components/Modals/ResultsModal/ResultsModal.vue"
 
 const showSearchModal = ref(false)
 const showStatsModal = ref(false)
@@ -102,6 +102,22 @@ const closeSearchModal = () => {
 }
 
 const clickStatsButton = () => {
+  if (!gameState.value.hasSubmitted) {
+    const answers = gameState.value.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
+
+    let userToken = LocalStorage.get("userToken")
+    if (userToken === null) return
+
+    submitAnswers(1, userToken, answers).then(() => {
+      const gameStateStorage = LocalStorage.get("gameState")
+      if (gameStateStorage === null) return
+
+      gameStateStorage.hasSubmitted = true
+      LocalStorage.set("gameState", gameStateStorage)
+      gameState.value = gameStateStorage
+    })
+  }
+
   showStatsModal.value = !showStatsModal.value
 }
 
@@ -149,7 +165,7 @@ const selectPokemon = (pokemon: string) => {
         gameStateStorage.board.every((row) => row.every((cell) => cell.pokemon?.length))) &&
       userToken
     ) {
-      const answers = gameState.value.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
+      const answers = gameStateStorage.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
 
       submitAnswers(1, userToken, answers).then(() => {
         const gameStateStorage = LocalStorage.get("gameState")
@@ -202,7 +218,14 @@ const selectPokemon = (pokemon: string) => {
     @select-option="selectPokemon"
     :pokemons="pokemons"
   />
-  <ResultsModal v-if="showStatsModal" @modal-close="closeStatsModal" />
+  <ResultsModal
+    v-if="showStatsModal"
+    @modal-close="closeStatsModal"
+    :top-headers="board.cols"
+    :side-headers="board.rows"
+    :answer-freqs="answerFreqs"
+    :valid-answers="validAnswers"
+  />
 </template>
 
 <style scoped>

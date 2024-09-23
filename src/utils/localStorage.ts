@@ -1,7 +1,12 @@
+export interface ICell {
+  pokemon?: string
+  rarityPerc?: number
+}
+
 export interface StorageKeyMap {
   userToken: string
   gameState: {
-    board: { pokemon?: string; rarityPerc?: number }[][]
+    board: ICell[][]
     numTries: number
     hasSubmitted: boolean
     isGameOver: boolean

@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import type { ICell } from "@/utils/localStorage"
-
-const { header, images, answers, openModal, isGameOver } = defineProps<{
+const { header, images, answers } = defineProps<{
   header: string
   images: string[]
-  answers: ICell[]
-  isGameOver: boolean
-  openModal: (col: number) => void
+  answers: { pokemon?: string; rarityPerc?: number }[]
 }>()
 </script>
 
@@ -14,13 +10,7 @@ const { header, images, answers, openModal, isGameOver } = defineProps<{
   <div class="header-col-container">
     <div class="header-col">{{ header }}</div>
   </div>
-  <div
-    v-for="(image, i) in images"
-    :key="i"
-    class="cell"
-    @click="image.length || isGameOver ? null : openModal(i)"
-    :style="{ cursor: image.length || isGameOver ? 'default' : 'pointer' }"
-  >
+  <div v-for="(image, i) in images" :key="i" class="cell">
     <div v-if="image.length" class="pokemon">{{ answers[i].pokemon }}</div>
     <div v-if="image.length" class="img-container">
       <img class="img" :src="image" :alt="answers[i].pokemon" />
@@ -39,16 +29,10 @@ const { header, images, answers, openModal, isGameOver } = defineProps<{
 
 .header-col {
   text-align: center;
-  position: absolute;
-  max-width: 100px;
-  width: max-content;
-  right: 0;
-  margin-right: 8px;
 }
 
 .cell {
   background-color: #eee;
-  cursor: pointer;
   aspect-ratio: 1 / 1;
   overflow: hidden;
   display: flex;
@@ -79,14 +63,6 @@ const { header, images, answers, openModal, isGameOver } = defineProps<{
   left: 0;
   margin: 0;
   padding: 0;
-}
-
-@media screen and (max-width: 840px) {
-  .header-col {
-    position: initial;
-    margin-right: 0;
-    width: auto;
-  }
 }
 
 @media screen and (max-width: 600px) {
