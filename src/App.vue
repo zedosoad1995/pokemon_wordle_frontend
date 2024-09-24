@@ -13,6 +13,7 @@ const showSearchModal = ref(false)
 const showStatsModal = ref(false)
 const selectedRow = ref<number | null>(null)
 const selectedCol = ref<number | null>(null)
+const totalPlays = ref<number | null>(null)
 const pokemons = ref<string[]>([])
 const board = ref<{
   rows: string[]
@@ -52,6 +53,7 @@ onMounted(async () => {
   getBoard(1).then((res) => {
     board.value = res.board
     validAnswers.value = res.answers
+    totalPlays.value = res.totalPlays
   })
   getAnswerFreq(1).then((res) => {
     answerFreqs.value = res.freqs
@@ -211,7 +213,9 @@ const selectPokemon = (pokemon: string) => {
     <div>Tries: {{ gameState.numTries }}</div>
     <div>Score: {{ gameState.score }}</div>
   </div>
-  <button v-if="gameState.isGameOver" @click="clickStatsButton">Show statistics</button>
+  <div class="stats-btn-container">
+    <button v-if="gameState.isGameOver" @click="clickStatsButton">Show statistics</button>
+  </div>
   <SearchModal
     v-if="showSearchModal"
     @modal-close="closeSearchModal"
@@ -225,6 +229,7 @@ const selectPokemon = (pokemon: string) => {
     :side-headers="board.rows"
     :answer-freqs="answerFreqs"
     :valid-answers="validAnswers"
+    :num-plays="totalPlays"
   />
 </template>
 
@@ -262,6 +267,12 @@ const selectPokemon = (pokemon: string) => {
   justify-content: center;
   gap: 24px;
   margin-top: 16px;
+}
+
+.stats-btn-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
 }
 
 @media screen and (max-width: 840px) {

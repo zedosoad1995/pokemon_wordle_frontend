@@ -6,6 +6,7 @@ interface getBoardRes {
     rows: string[]
   }
   answers: string[][][]
+  totalPlays: number
 }
 
 export const getBoard = (boardNum: number): Promise<getBoardRes> => {

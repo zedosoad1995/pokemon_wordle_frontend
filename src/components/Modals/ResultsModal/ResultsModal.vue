@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import RowOfCells from "./RowOfCells.vue"
+import RowOfCells from "./RowOfCellsImages.vue"
+import RowOfCellsFreq from "./RowOfCellsFreq.vue";
 
-const { sideHeaders, topHeaders, answerFreqs, validAnswers } = defineProps<{
+const { sideHeaders, topHeaders, answerFreqs, validAnswers, numPlays } = defineProps<{
   topHeaders: string[]
   sideHeaders: string[]
   answerFreqs: Record<string, number>[][]
   validAnswers: string[][][]
+  numPlays: number | null
 }>()
 const emit = defineEmits<{
   "modal-close": []
@@ -71,6 +73,18 @@ const rarestImages = computed(() => {
     row.map(({ pokemon }) => import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png")
   )
 })
+
+const percPlayed = computed(() => {
+  return answerFreqs.map((row) =>
+    row.map((cell) => {
+      if(numPlays === null) return 0
+
+      const numPlaysCell = Object.values(cell).reduce((acc, val) => acc + val, 0)
+
+      return Number((numPlaysCell/numPlays * 100).toFixed(1))
+    })
+  )
+})
 </script>
 
 <template>
@@ -105,6 +119,20 @@ const rarestImages = computed(() => {
           :images="rarestImages[i - 1]"
           :answers="rarestAnswers[i - 1]"
           :key="i"
+        />
+      </div>
+      <h2>Answer Frequency</h2>
+      <div class="grid">
+        <div></div>
+        <div class="header-row">{{ topHeaders[0] }}</div>
+        <div class="header-row">{{ topHeaders[1] }}</div>
+        <div class="header-row">{{ topHeaders[2] }}</div>
+
+        <RowOfCellsFreq
+          v-for="i in 3"
+          :key="i"
+          :header="sideHeaders[i - 1]"
+          :freqs="percPlayed[i - 1]"
         />
       </div>
     </div>
