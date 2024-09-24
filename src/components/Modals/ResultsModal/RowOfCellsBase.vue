@@ -33,6 +33,7 @@ const { header, items } = defineProps<{
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
 }
 
 @media screen and (max-width: 600px) {

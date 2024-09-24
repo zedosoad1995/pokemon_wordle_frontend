@@ -178,6 +178,7 @@ const selectPokemon = (pokemon: string) => {
         gameState.value = gameStateStorage
       })
       gameStateStorage.isGameOver = true
+      totalPlays.value = (totalPlays.value ?? 0) + 1
     }
 
     LocalStorage.set("gameState", gameStateStorage)

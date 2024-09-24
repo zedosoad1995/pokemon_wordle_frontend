@@ -2,6 +2,7 @@
 import { computed } from "vue"
 import RowOfCells from "./RowOfCellsImages.vue"
 import RowOfCellsFreq from "./RowOfCellsFreq.vue";
+import RowOfCellsAnswers from "./RowOfCellsAnswers.vue";
 
 const { sideHeaders, topHeaders, answerFreqs, validAnswers, numPlays } = defineProps<{
   topHeaders: string[]
@@ -133,6 +134,20 @@ const percPlayed = computed(() => {
           :key="i"
           :header="sideHeaders[i - 1]"
           :freqs="percPlayed[i - 1]"
+        />
+      </div>
+      <h2>Answers</h2>
+      <div class="grid">
+        <div></div>
+        <div class="header-row">{{ topHeaders[0] }}</div>
+        <div class="header-row">{{ topHeaders[1] }}</div>
+        <div class="header-row">{{ topHeaders[2] }}</div>
+
+        <RowOfCellsAnswers
+          v-for="i in 3"
+          :key="i"
+          :header="sideHeaders[i - 1]"
+          :valid-answers="validAnswers[i - 1]"
         />
       </div>
     </div>

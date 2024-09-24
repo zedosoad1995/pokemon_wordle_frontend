@@ -17,6 +17,6 @@ const { header, freqs } = defineProps<{
 
 <style scoped>
 .freq {
-  margin: auto;
+  font-size: large;
 }
 </style>
