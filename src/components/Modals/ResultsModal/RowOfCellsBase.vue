@@ -1,7 +1,11 @@
 <script setup lang="ts">
-const { header, items } = defineProps<{
+const { header, items, cellClass } = defineProps<{
   header: string
   items: any[]
+  cellClass?: string
+}>()
+const emit = defineEmits<{
+  "cell-clicked": [i: number]
 }>()
 </script>
 
@@ -9,7 +13,12 @@ const { header, items } = defineProps<{
   <div class="header-col-container">
     <div class="header-col">{{ header }}</div>
   </div>
-  <div v-for="(item, i) in items" :key="i" class="cell">
+  <div
+    v-for="(item, i) in items"
+    :key="i"
+    :class="['cell', cellClass]"
+    @click="emit('cell-clicked', i)"
+  >
     <slot :item="item" :index="i"></slot>
   </div>
 </template>

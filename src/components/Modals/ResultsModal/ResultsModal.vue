@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import RowOfCells from "./RowOfCellsImages.vue"
-import RowOfCellsFreq from "./RowOfCellsFreq.vue";
-import RowOfCellsAnswers from "./RowOfCellsAnswers.vue";
+import RowOfCellsFreq from "./RowOfCellsFreq.vue"
+import RowOfCellsAnswers from "./RowOfCellsAnswers.vue"
 
 const { sideHeaders, topHeaders, answerFreqs, validAnswers, numPlays } = defineProps<{
   topHeaders: string[]
@@ -16,9 +16,13 @@ const emit = defineEmits<{
 }>()
 
 const mostFrequentAnswers = computed(() => {
-  return answerFreqs.map((row) =>
-    row.map((cell) => {
+  return answerFreqs.map((row, i) =>
+    row.map((cell, j) => {
       const total = Object.values(cell).reduce((acc, val) => acc + val, 0)
+
+      if (total === 0) {
+        return { pokemon: validAnswers[i][j][0], rarityPerc: 0 }
+      }
 
       const res = Object.entries(cell).reduce(
         (mostCommon, [key, val]) => {
@@ -46,6 +50,10 @@ const rarestAnswers = computed(() => {
   return answerFreqs.map((row, i) =>
     row.map((cell, j) => {
       const total = Object.values(cell).reduce((acc, val) => acc + val, 0)
+
+      if (total === 0) {
+        return { pokemon: validAnswers[i][j][0], rarityPerc: 0 }
+      }
 
       const res = Object.entries(cell).reduce(
         (rarest, [key, val]) => {
@@ -78,11 +86,11 @@ const rarestImages = computed(() => {
 const percPlayed = computed(() => {
   return answerFreqs.map((row) =>
     row.map((cell) => {
-      if(numPlays === null) return 0
+      if (numPlays === null) return 0
 
       const numPlaysCell = Object.values(cell).reduce((acc, val) => acc + val, 0)
 
-      return Number((numPlaysCell/numPlays * 100).toFixed(1))
+      return Number(((numPlaysCell / numPlays) * 100).toFixed(1))
     })
   )
 })
