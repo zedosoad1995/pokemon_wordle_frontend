@@ -4,13 +4,16 @@ import RowOfCells from "./RowOfCellsImages.vue"
 import RowOfCellsFreq from "./RowOfCellsFreq.vue"
 import RowOfCellsAnswers from "./RowOfCellsAnswers.vue"
 
-const { sideHeaders, topHeaders, answerFreqs, validAnswers, numPlays } = defineProps<{
-  topHeaders: string[]
-  sideHeaders: string[]
-  answerFreqs: Record<string, number>[][]
-  validAnswers: string[][][]
-  numPlays: number | null
-}>()
+const { sideHeaders, topHeaders, answerFreqs, validAnswers, numPlays, standing, score } =
+  defineProps<{
+    topHeaders: string[]
+    sideHeaders: string[]
+    answerFreqs: Record<string, number>[][]
+    validAnswers: string[][][]
+    numPlays: number | null
+    standing: number | undefined
+    score: number
+  }>()
 const emit = defineEmits<{
   "modal-close": []
 }>()
@@ -100,6 +103,17 @@ const percPlayed = computed(() => {
   <div class="overlay" @click="emit('modal-close')">
     <div class="modal" @click.stop>
       <h1>Game Summary</h1>
+      <h2>Your Score</h2>
+      <div class="score-container">
+        <div class="score-row">
+          <div class="score-label">Score:</div>
+          <div>{{ score }}</div>
+        </div>
+        <div class="score-row">
+          <div class="score-label">Rank:</div>
+          <div>{{ standing }}/{{ numPlays }}</div>
+        </div>
+      </div>
       <h2>Most popular answers</h2>
       <div class="grid">
         <div></div>
@@ -198,6 +212,21 @@ const percPlayed = computed(() => {
   grid-template-rows: auto repeat(3, 1fr);
   gap: 4px;
   width: 100%;
+}
+
+.score-container {
+  min-width: 100px;
+  width: fit-content;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.score-label {
+  font-weight: 600;
 }
 
 .header-row {

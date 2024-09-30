@@ -6,19 +6,28 @@ interface getBoardRes {
     rows: string[]
   }
   answers: string[][][]
-  totalPlays: number
 }
 
 export const getBoard = (boardNum: number): Promise<getBoardRes> => {
   return api.get(`/boards/${boardNum}`)
 }
 
-interface getAnswerFreqRes {
+interface getAnswerFreqAndScoreRes {
   freqs: Record<string, number>[][]
+  isGameOver: boolean
+  userPosition?: number
+  totalPlays: number
 }
 
-export const getAnswerFreq = (boardNum: number): Promise<getAnswerFreqRes> => {
-  return api.get(`/boards/${boardNum}/answers/freq`)
+export const getAnswerFreqAndScore = (
+  boardNum: number,
+  userToken: string
+): Promise<getAnswerFreqAndScoreRes> => {
+  return api.get(`/boards/${boardNum}/answers/freq-and-score`, {
+    params: {
+      userToken
+    }
+  })
 }
 
 export const updateAnswer = (

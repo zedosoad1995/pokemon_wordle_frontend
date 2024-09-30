@@ -2,12 +2,13 @@
 import { onMounted, ref } from "vue"
 import SearchModal from "./components/Modals/SearchModal.vue"
 import { getPokemons } from "./api/pokemons"
-import { getAnswerFreq, getBoard, submitAnswers, updateAnswer } from "./api/boards"
+import { getAnswerFreqAndScore, getBoard, updateAnswer } from "./api/boards"
 import { generateToken } from "./utils/token"
 import { createUser } from "./api/users"
-import { gameStateFallback, LocalStorage, type StorageKeyMap } from "./utils/localStorage"
+import { LocalStorage } from "./utils/localStorage"
 import RowOfCells from "./components/Cells/RowOfCells.vue"
 import ResultsModal from "./components/Modals/ResultsModal/ResultsModal.vue"
+import { useGameState } from "./composables/useGameState"
 
 const showSearchModal = ref(false)
 const showStatsModal = ref(false)
@@ -22,11 +23,6 @@ const board = ref<{
   rows: ["", "", ""],
   cols: ["", "", ""]
 })
-const imagesBoard = ref<string[][]>([
-  ["", "", ""],
-  ["", "", ""],
-  ["", "", ""]
-])
 const validAnswers = ref<string[][][]>([
   [[], [], []],
   [[], [], []],
@@ -37,7 +33,9 @@ const answerFreqs = ref<Record<string, number>[][]>([
   [{}, {}, {}],
   [{}, {}, {}]
 ])
-const gameState = ref<StorageKeyMap["gameState"]>(gameStateFallback)
+const standing = ref<number>()
+
+const { gameState, imagesBoard, initGameState, submitGame } = useGameState()
 
 onMounted(async () => {
   let userToken = LocalStorage.get("userToken")
@@ -53,41 +51,33 @@ onMounted(async () => {
   getBoard(1).then((res) => {
     board.value = res.board
     validAnswers.value = res.answers
-    totalPlays.value = res.totalPlays
-  })
-  getAnswerFreq(1).then((res) => {
-    answerFreqs.value = res.freqs
   })
 
-  const gameStateStorage = LocalStorage.get("gameState")
-  if (gameStateStorage !== null) {
-    gameState.value = gameStateStorage
+  try {
+    await initGameState(userToken)
+  } finally {
+    getAnswerFreqAndScore(1, userToken).then((res) => {
+      answerFreqs.value = res.freqs
+      totalPlays.value = res.totalPlays
+      standing.value = res.userPosition
 
-    for (let i = 0; i < gameStateStorage.board.length; i++) {
-      for (let j = 0; j < gameStateStorage.board[i].length; j++) {
-        if (!gameStateStorage.board[i][j].pokemon) continue
+      let score = 900
 
-        imagesBoard.value[i][j] =
-          import.meta.env.VITE_ASSETS_URL +
-          "/poke_imgs/" +
-          gameStateStorage.board[i][j].pokemon +
-          ".png"
-      }
-    }
+      res.freqs.forEach((row, i) =>
+        row.forEach((cell, j) => {
+          if (!gameState.value.board[i][j].pokemon) return
 
-    if (gameStateStorage.isGameOver && !gameStateStorage.hasSubmitted) {
-      const answers = gameState.value.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
-      submitAnswers(1, userToken, answers).then(() => {
-        const gameStateStorage = LocalStorage.get("gameState")
-        if (gameStateStorage === null) return
+          const total = Object.values(cell).reduce((acc, curr) => acc + curr, 0)
+          const rarityPerc = Number(((cell[gameState.value.board[i][j].pokemon] / total) * 100).toFixed(1))
+          gameState.value.board[i][j].rarityPerc = rarityPerc
 
-        gameStateStorage.hasSubmitted = true
-        LocalStorage.set("gameState", gameStateStorage)
-        gameState.value = gameStateStorage
-      })
-    }
-  } else {
-    LocalStorage.set("gameState", gameStateFallback)
+          score = Number((score - (100 - rarityPerc)).toFixed(1))
+        })
+      )
+
+      gameState.value.score = score
+      LocalStorage.set("gameState", gameState.value)
+    })
   }
 })
 
@@ -104,22 +94,6 @@ const closeSearchModal = () => {
 }
 
 const clickStatsButton = () => {
-  if (!gameState.value.hasSubmitted) {
-    const answers = gameState.value.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
-
-    let userToken = LocalStorage.get("userToken")
-    if (userToken === null) return
-
-    submitAnswers(1, userToken, answers).then(() => {
-      const gameStateStorage = LocalStorage.get("gameState")
-      if (gameStateStorage === null) return
-
-      gameStateStorage.hasSubmitted = true
-      LocalStorage.set("gameState", gameStateStorage)
-      gameState.value = gameStateStorage
-    })
-  }
-
   showStatsModal.value = !showStatsModal.value
 }
 
@@ -127,63 +101,41 @@ const closeStatsModal = () => {
   showStatsModal.value = false
 }
 
-const selectPokemon = (pokemon: string) => {
-  const gameStateStorage = LocalStorage.get("gameState")
+const selectPokemon = async (pokemon: string) => {
   const row = selectedRow.value
   const col = selectedCol.value
 
-  if (
-    row !== null &&
-    col !== null &&
-    validAnswers.value[row][col].includes(pokemon) &&
-    gameStateStorage !== null &&
-    !gameStateStorage.board[row][col].pokemon
-  ) {
+  if (row !== null && col !== null && validAnswers.value[row][col].includes(pokemon) && !gameState.value.board[row][col].pokemon) {
     const userToken = LocalStorage.get("userToken")
     if (userToken !== null) {
       updateAnswer(1, userToken, row + 1, col + 1, pokemon)
 
       answerFreqs.value[row][col][pokemon] = (answerFreqs.value[row][col][pokemon] ?? 0) + 1
       const total = Object.values(answerFreqs.value[row][col]).reduce((acc, curr) => acc + curr, 0)
-      gameStateStorage.board[row][col].rarityPerc = Number(
-        ((answerFreqs.value[row][col][pokemon] / total) * 100).toFixed(1)
-      )
-      gameStateStorage.board[row][col].pokemon = pokemon
-      gameStateStorage.score = Number(
-        (gameStateStorage.score - 100 + gameStateStorage.board[row][col].rarityPerc).toFixed(1)
-      )
+      gameState.value.board[row][col].rarityPerc = Number(((answerFreqs.value[row][col][pokemon] / total) * 100).toFixed(1))
+      gameState.value.board[row][col].pokemon = pokemon
+      gameState.value.score = Number((gameState.value.score - 100 + gameState.value.board[row][col].rarityPerc).toFixed(1))
 
-      imagesBoard.value[row][col] =
-        import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png"
+      imagesBoard.value[row][col] = import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png"
     }
   }
 
-  if (gameStateStorage !== null) {
-    gameStateStorage.numTries = Math.max(gameStateStorage.numTries - 1, 0)
+  gameState.value.numTries = Math.max(gameState.value.numTries - 1, 0)
 
-    const userToken = LocalStorage.get("userToken")
-    if (
-      (gameStateStorage.numTries === 0 ||
-        gameStateStorage.board.every((row) => row.every((cell) => cell.pokemon?.length))) &&
-      userToken
-    ) {
-      const answers = gameStateStorage.board.map((row) => row.map(({ pokemon }) => pokemon ?? ""))
+  const userToken = LocalStorage.get("userToken")
+  if ((gameState.value.numTries === 0 || gameState.value.board.every((row) => row.every((cell) => cell.pokemon?.length))) && userToken) {
+    await submitGame(userToken)
+    getAnswerFreqAndScore(1, userToken).then((res) => {
+      answerFreqs.value = res.freqs
+      totalPlays.value = res.totalPlays
+      standing.value = res.userPosition
+    })
 
-      submitAnswers(1, userToken, answers).then(() => {
-        const gameStateStorage = LocalStorage.get("gameState")
-        if (gameStateStorage === null) return
-
-        gameStateStorage.hasSubmitted = true
-        LocalStorage.set("gameState", gameStateStorage)
-        gameState.value = gameStateStorage
-      })
-      gameStateStorage.isGameOver = true
-      totalPlays.value = (totalPlays.value ?? 0) + 1
-    }
-
-    LocalStorage.set("gameState", gameStateStorage)
-    gameState.value = gameStateStorage
+    gameState.value.isGameOver = true
+    totalPlays.value = (totalPlays.value ?? 0) + 1
   }
+
+  LocalStorage.set("gameState", gameState.value)
 
   closeSearchModal()
 }
@@ -217,12 +169,7 @@ const selectPokemon = (pokemon: string) => {
   <div class="stats-btn-container">
     <button v-if="gameState.isGameOver" @click="clickStatsButton">Show statistics</button>
   </div>
-  <SearchModal
-    v-if="showSearchModal"
-    @modal-close="closeSearchModal"
-    @select-option="selectPokemon"
-    :pokemons="pokemons"
-  />
+  <SearchModal v-if="showSearchModal" @modal-close="closeSearchModal" @select-option="selectPokemon" :pokemons="pokemons" />
   <ResultsModal
     v-if="showStatsModal"
     @modal-close="closeStatsModal"
@@ -231,6 +178,8 @@ const selectPokemon = (pokemon: string) => {
     :answer-freqs="answerFreqs"
     :valid-answers="validAnswers"
     :num-plays="totalPlays"
+    :standing="standing"
+    :score="gameState.score"
   />
 </template>
 
