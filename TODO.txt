@@ -1,2 +1,0 @@
-deal when user is the 1st to respond to a cell, the points should be 0 and not 100.
-score and freqs not updated when reloading page

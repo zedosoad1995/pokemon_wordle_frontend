@@ -67,8 +67,13 @@ onMounted(async () => {
         row.forEach((cell, j) => {
           if (!gameState.value.board[i][j].pokemon) return
 
-          const total = Object.values(cell).reduce((acc, curr) => acc + curr, 0)
-          const rarityPerc = Number(((cell[gameState.value.board[i][j].pokemon] / total) * 100).toFixed(1))
+          const numPokeInCell = cell[gameState.value.board[i][j].pokemon]
+
+          let rarityPerc = 0
+          if (numPokeInCell > 1) {
+            const total = Object.values(cell).reduce((acc, curr) => acc + curr, 0)
+            rarityPerc = Number(((cell[gameState.value.board[i][j].pokemon] / total) * 100).toFixed(1))
+          }
           gameState.value.board[i][j].rarityPerc = rarityPerc
 
           score = Number((score - (100 - rarityPerc)).toFixed(1))
@@ -111,12 +116,17 @@ const selectPokemon = async (pokemon: string) => {
       updateAnswer(1, userToken, row + 1, col + 1, pokemon)
 
       answerFreqs.value[row][col][pokemon] = (answerFreqs.value[row][col][pokemon] ?? 0) + 1
-      const total = Object.values(answerFreqs.value[row][col]).reduce((acc, curr) => acc + curr, 0)
-      gameState.value.board[row][col].rarityPerc = Number(((answerFreqs.value[row][col][pokemon] / total) * 100).toFixed(1))
       gameState.value.board[row][col].pokemon = pokemon
-      gameState.value.score = Number((gameState.value.score - 100 + gameState.value.board[row][col].rarityPerc).toFixed(1))
-
       imagesBoard.value[row][col] = import.meta.env.VITE_ASSETS_URL + "/poke_imgs/" + pokemon + ".png"
+
+      if (answerFreqs.value[row][col][pokemon] > 1) {
+        const total = Object.values(answerFreqs.value[row][col]).reduce((acc, curr) => acc + curr, 0)
+        gameState.value.board[row][col].rarityPerc = Number(((answerFreqs.value[row][col][pokemon] / total) * 100).toFixed(1))
+      } else {
+        gameState.value.board[row][col].rarityPerc = 0
+      }
+
+      gameState.value.score = Number((gameState.value.score - 100 + gameState.value.board[row][col].rarityPerc).toFixed(1))
     }
   }
 
